@@ -21,7 +21,7 @@ class STrack(BaseTrack):
     def __init__(self, tlwh, score, max_n_features=100, from_det=True):
 
         # wait activate
-        self._tlwh = np.asarray(tlwh, dtype=np.float)
+        self._tlwh = np.asarray(tlwh, dtype=float)
         self.kalman_filter = None
         self.mean, self.covariance = None, None
         self.is_activated = False
@@ -202,7 +202,7 @@ class OnlineTracker(object):
         self.frame_id = 0
 
     def update(self, output_results, img_info, img_size, img_file_name):
-        img_file_name = os.path.join(get_yolox_datadir(), 'mot', 'train', img_file_name)
+        img_file_name = os.path.join(get_yolox_datadir(), 'kitti', 'image_02', img_file_name)
         image = cv2.imread(img_file_name)
         # post process detections
         output_results = output_results.cpu().numpy()

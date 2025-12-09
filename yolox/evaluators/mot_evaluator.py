@@ -30,11 +30,12 @@ def write_results(filename, results):
     save_format = '{frame},{id},{x1},{y1},{w},{h},{s},-1,-1,-1\n'
     with open(filename, 'w') as f:
         for frame_id, tlwhs, track_ids, scores in results:
+            mot_frame_id = frame_id + 1  # MOT format uses 1-based frame numbering
             for tlwh, track_id, score in zip(tlwhs, track_ids, scores):
                 if track_id < 0:
                     continue
                 x1, y1, w, h = tlwh
-                line = save_format.format(frame=frame_id, id=track_id, x1=round(x1, 1), y1=round(y1, 1), w=round(w, 1), h=round(h, 1), s=round(score, 2))
+                line = save_format.format(frame=mot_frame_id, id=track_id, x1=round(x1, 1), y1=round(y1, 1), w=round(w, 1), h=round(h, 1), s=round(score, 2))
                 f.write(line)
     logger.info('save results to {}'.format(filename))
 
@@ -86,6 +87,19 @@ class MOTEvaluator:
         test_size=None,
         result_folder=None
     ):
+        
+        #REVERT
+        print(self.img_size)
+    
+        # ADD THIS DEBUG BLOCK HERE:
+        print(f"\n{'='*60}")
+        print(f"CRITICAL DEBUG - Evaluator Configuration")
+        print(f"{'='*60}")
+        print(f"self.img_size (evaluator): {self.img_size}")
+        print(f"test_size parameter: {test_size}")
+        print(f"dataloader.dataset.img_size: {self.dataloader.dataset.img_size}")
+        print(f"{'='*60}\n")
+        #REVERT
         """
         COCO average precision (AP) Evaluation. Iterate inference on the test dataset
         and the results are evaluated by COCO API.
@@ -100,6 +114,9 @@ class MOTEvaluator:
             ap50 (float) : COCO AP of IoU=50
             summary (sr): summary info of evaluation.
         """
+        #REVERT
+        print(self.img_size)
+        #REVERT
         # TODO half to amp_test
         tensor_type = torch.cuda.HalfTensor if half else torch.cuda.FloatTensor
         model = model.eval()
@@ -161,7 +178,7 @@ class MOTEvaluator:
                 if frame_id == 1:
                     tracker = BYTETracker(self.args)
                     if len(results) != 0:
-                        result_filename = os.path.join(result_folder, '{}.txt'.format(video_names[video_id - 1]))
+                        result_filename = os.path.join(result_folder, '{}.txt'.format(video_names[video_id]))
                         write_results(result_filename, results)
                         results = []
 
@@ -177,7 +194,17 @@ class MOTEvaluator:
                     outputs = decoder(outputs, dtype=outputs.type())
 
                 outputs = postprocess(outputs, self.num_classes, self.confthre, self.nmsthre)
-            
+
+                #REVERT start
+                # ========== ADD THIS FILTER FOR CAR ONLY ==========
+                #if outputs[0] is not None:
+                #    # Filter to only keep Car detections (COCO class 2)
+                #    car_mask = outputs[0][:, 6] == 2
+                #    outputs[0] = outputs[0][car_mask]
+                #    print(f"Frame {info_imgs[2].item()}: Filtered to {len(outputs[0])} car detections")
+                # ===================================================
+                #REVERT end
+
                 if is_time_record:
                     infer_end = time_synchronized()
                     inference_time += infer_end - start
@@ -185,9 +212,74 @@ class MOTEvaluator:
             output_results = self.convert_to_coco_format(outputs, info_imgs, ids)
             data_list.extend(output_results)
 
-            # run tracking
+            #REVERT start BEFORE the if statement
+            print(f"Frame {info_imgs[2].item()}: outputs[0] is {'None' if outputs[0] is None else f'shape {outputs[0].shape}'}")
             if outputs[0] is not None:
-                online_targets = tracker.update(outputs[0], info_imgs, self.img_size)
+                print(f"  Raw detections: {len(outputs[0])}")
+                if len(outputs[0]) > 0:
+                    print(f"  Classes: {outputs[0][:, 6].unique()}")
+                    print(f"  Confidences: {outputs[0][:, 4].min():.3f} - {outputs[0][:, 4].max():.3f}")
+            else:
+                print("  No detections (outputs is None)")
+            #REVERT end
+            # ADD THIS RIGHT BEFORE THE TRACKING CODE:
+            print(f"\n=== FRAME {info_imgs[2].item()} DEBUG ===")
+            print(f"Input tensor shape: {imgs.shape if 'imgs' in locals() else 'imgs not found'}")
+            print(f"Input tensor range: {imgs.min():.3f} to {imgs.max():.3f}" if 'imgs' in locals() else "")
+            print(f"Output is None: {outputs[0] is None}")
+            if outputs[0] is not None:
+                print(f"Output shape: {outputs[0].shape}")
+                print(f"Number of detections: {len(outputs[0])}")
+                if len(outputs[0]) > 0:
+                    print(f"Detection classes: {outputs[0][:, 6].unique()}")
+                    print(f"Detection confidences: min={outputs[0][:, 4].min():.3f}, max={outputs[0][:, 4].max():.3f}")
+                    print(f"First 3 detections:\n{outputs[0][:3]}")
+            else:
+                print("NO DETECTIONS!")
+            print(f"Confidence threshold: {self.confthre}")
+            print(f"NMS threshold: {self.nmsthre}")
+            print("=" * 50)
+
+            # run tracking
+            #if outputs[0] is not None:
+            #    online_targets = tracker.update(outputs[0], info_imgs, self.img_size)
+            #    online_tlwhs = []
+            #    online_ids = []
+            #    online_scores = []
+            #    for t in online_targets:
+            #        tlwh = t.tlwh
+            #        tid = t.track_id
+            #        vertical = tlwh[2] / tlwh[3] > 1.6
+            #        if tlwh[2] * tlwh[3] > self.args.min_box_area and not vertical:
+            #            online_tlwhs.append(tlwh)
+            #            online_ids.append(tid)
+            #            online_scores.append(t.score)
+            #    # save results
+            #    results.append((frame_id, online_tlwhs, online_ids, online_scores))
+            
+            if outputs[0] is not None:
+                # ===== ADD FILTERING HERE =====
+                # Filter to only keep KITTI classes: 2
+                valid_classes = torch.tensor([2], device=outputs[0].device)
+                mask = torch.zeros(len(outputs[0]), dtype=torch.bool, device=outputs[0].device)
+                for cls_id in valid_classes:
+                    mask |= (outputs[0][:, 6] == cls_id)
+
+                filtered_outputs = outputs[0][mask]
+
+                print(f"Frame {info_imgs[2].item()}: Filtered {len(outputs[0])} -> {len(filtered_outputs)} detections")
+                if len(filtered_outputs) > 0:
+                    print(f"  Kept classes: {filtered_outputs[:, 6].unique()}")
+                # ===== END FILTERING =====
+
+                # Only run tracker if we have valid detections after filtering
+                if len(filtered_outputs) > 0:
+                    print(f"TRACKER DEBUG: self.img_size = {self.img_size}, info_imgs shape = {info_imgs[0].item()}×{info_imgs[1].item()}")
+                    online_targets = tracker.update(filtered_outputs, info_imgs, self.img_size)
+                else:
+                    online_targets = []  # No valid detections, return empty list
+    
+                # Process tracking results
                 online_tlwhs = []
                 online_ids = []
                 online_scores = []
@@ -201,6 +293,9 @@ class MOTEvaluator:
                         online_scores.append(t.score)
                 # save results
                 results.append((frame_id, online_tlwhs, online_ids, online_scores))
+            else:
+                # No detections at all
+                results.append((frame_id, [], [], []))
 
             if is_time_record:
                 track_end = time_synchronized()
@@ -286,7 +381,7 @@ class MOTEvaluator:
                 if frame_id == 1:
                     tracker = Sort(self.args.track_thresh)
                     if len(results) != 0:
-                        result_filename = os.path.join(result_folder, '{}.txt'.format(video_names[video_id - 1]))
+                        result_filename = os.path.join(result_folder, '{}.txt'.format(video_names[video_id]))
                         write_results_no_score(result_filename, results)
                         results = []
 
@@ -311,7 +406,10 @@ class MOTEvaluator:
             data_list.extend(output_results)
 
             # run tracking
-            online_targets = tracker.update(outputs[0], info_imgs, self.img_size)
+            if outputs[0] is not None:
+                online_targets = tracker.update(outputs[0], info_imgs, self.img_size)
+            else:
+                online_targets = []
             online_tlwhs = []
             online_ids = []
             for t in online_targets:
@@ -409,7 +507,7 @@ class MOTEvaluator:
                 if frame_id == 1:
                     tracker = DeepSort(model_folder, min_confidence=self.args.track_thresh)
                     if len(results) != 0:
-                        result_filename = os.path.join(result_folder, '{}.txt'.format(video_names[video_id - 1]))
+                        result_filename = os.path.join(result_folder, '{}.txt'.format(video_names[video_id]))
                         write_results_no_score(result_filename, results)
                         results = []
 
@@ -434,7 +532,10 @@ class MOTEvaluator:
             data_list.extend(output_results)
 
             # run tracking
-            online_targets = tracker.update(outputs[0], info_imgs, self.img_size, img_file_name[0])
+            if outputs[0] is not None:
+                online_targets = tracker.update(outputs[0], info_imgs, self.img_size, img_file_name[0])
+            else:
+                online_targets = []
             online_tlwhs = []
             online_ids = []
             for t in online_targets:
@@ -531,7 +632,7 @@ class MOTEvaluator:
                 if frame_id == 1:
                     tracker = OnlineTracker(model_folder, min_cls_score=self.args.track_thresh)
                     if len(results) != 0:
-                        result_filename = os.path.join(result_folder, '{}.txt'.format(video_names[video_id - 1]))
+                        result_filename = os.path.join(result_folder, '{}.txt'.format(video_names[video_id]))
                         write_results(result_filename, results)
                         results = []
 
@@ -556,7 +657,10 @@ class MOTEvaluator:
             data_list.extend(output_results)
 
             # run tracking
-            online_targets = tracker.update(outputs[0], info_imgs, self.img_size, img_file_name[0])
+            if outputs[0] is not None:
+                online_targets = tracker.update(outputs[0], info_imgs, self.img_size, img_file_name[0])
+            else:
+                online_targets = []
             online_tlwhs = []
             online_ids = []
             online_scores = []

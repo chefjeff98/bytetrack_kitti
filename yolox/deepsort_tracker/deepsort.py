@@ -166,7 +166,7 @@ class DeepSort(object):
             metric, max_iou_distance=max_iou_distance, max_age=max_age, n_init=n_init)
 
     def update(self, output_results, img_info, img_size, img_file_name):
-        img_file_name = os.path.join(get_yolox_datadir(), 'mot', 'train', img_file_name)
+        img_file_name = os.path.join(get_yolox_datadir(), 'kitti', 'image_02', img_file_name)
         ori_img = cv2.imread(img_file_name)
         self.height, self.width = ori_img.shape[:2]
         # post process detections
@@ -206,7 +206,7 @@ class DeepSort(object):
             x1, y1, x2, y2 = self._tlwh_to_xyxy_noclip(box)
             track_id = track.track_id
             class_id = track.class_id
-            outputs.append(np.array([x1, y1, x2, y2, track_id, class_id], dtype=np.int))
+            outputs.append(np.array([x1, y1, x2, y2, track_id, class_id], dtype=int))
         if len(outputs) > 0:
             outputs = np.stack(outputs, axis=0)
         return outputs

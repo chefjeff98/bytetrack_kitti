@@ -15,7 +15,7 @@ class STrack(BaseTrack):
     def __init__(self, tlwh, score):
 
         # wait activate
-        self._tlwh = np.asarray(tlwh, dtype=np.float)
+        self._tlwh = np.asarray(tlwh, dtype=float)
         self.kalman_filter = None
         self.mean, self.covariance = None, None
         self.is_activated = False
@@ -82,6 +82,8 @@ class STrack(BaseTrack):
         new_tlwh = new_track.tlwh
         self.mean, self.covariance = self.kalman_filter.update(
             self.mean, self.covariance, self.tlwh_to_xyah(new_tlwh))
+        
+    
         self.state = TrackState.Tracked
         self.is_activated = True
 
@@ -150,8 +152,8 @@ class BYTETracker(object):
 
         self.frame_id = 0
         self.args = args
-        #self.det_thresh = args.track_thresh
-        self.det_thresh = args.track_thresh + 0.1
+        self.det_thresh = args.track_thresh
+        #REVERT: self.det_thresh = args.track_thresh + 0.1
         self.buffer_size = int(frame_rate / 30.0 * args.track_buffer)
         self.max_time_lost = self.buffer_size
         self.kalman_filter = KalmanFilter()
@@ -170,9 +172,30 @@ class BYTETracker(object):
             output_results = output_results.cpu().numpy()
             scores = output_results[:, 4] * output_results[:, 5]
             bboxes = output_results[:, :4]  # x1y1x2y2
+
+        # ADD THIS DEBUG:
+        if self.frame_id == 2:  # Only print for frame 2
+            print(f"\n{'='*60}")
+            print(f"BYTE_TRACKER DEBUG - Frame {self.frame_id}")
+            print(f"{'='*60}")
+            print(f"img_info[0] (height): {img_info[0]}")
+            print(f"img_info[1] (width): {img_info[1]}")
+            print(f"img_size: {img_size}")
+            print(f"First bbox BEFORE scaling: {bboxes[0]}")
+
         img_h, img_w = img_info[0], img_info[1]
         scale = min(img_size[0] / float(img_h), img_size[1] / float(img_w))
+
+        # ADD THIS DEBUG:
+        if self.frame_id == 2:
+            print(f"Calculated scale: {scale:.6f}")
+            print(f"Formula: min({img_size[0]}/{img_h}, {img_size[1]}/{img_w})")
         bboxes /= scale
+
+        # ADD THIS DEBUG:
+        if self.frame_id == 2:
+            print(f"First bbox AFTER scaling: {bboxes[0]}")
+            print(f"{'='*60}\n")
 
         remain_inds = scores > self.args.track_thresh
         inds_low = scores > 0.1

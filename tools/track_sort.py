@@ -221,8 +221,8 @@ def main(exp, args, num_gpu):
     # evaluate MOTA
     mm.lap.default_solver = 'lap'
 
-    gt_type = '_val_half'
-    #gt_type = ''
+    #gt_type = '_val_half'
+    gt_type = ''
     print('gt_type', gt_type)
     gtfiles = glob.glob(
       os.path.join('datasets/mot/train', '*/gt/gt{}.txt'.format(gt_type)))
