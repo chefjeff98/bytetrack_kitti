@@ -1,4 +1,4 @@
-##ByteTrack evaluated on KITTI dataset
+## ByteTrack evaluated on KITTI dataset
 
 This repo contains the code used to evaluate the KITTI MOT training dataset on ByteTrack. 
 
@@ -24,10 +24,10 @@ Step3. Others
 pip3 install cython_bbox
 ```
 
-##Download large files
+### Download large files
 Download the files at https://drive.google.com/drive/folders/1Trchno13FVShx5xxQ0k1kHGwW3zXOXL6?usp=sharing and add them to your ByteTrack directory. Access is granted only to University of Michigan students and faculty. 
 
-##Run and evaluate ByteTrack
+### Run and evaluate ByteTrack
 These commands will run object detection, tracking, and evaluation for ByteTrack, SORT, DeepSORT, and MOTDT.
 ```shell
 python tools/track.py -f .\exps\yolox_s_kitti.py -c .\pretrained\yolox_s.pth --fp16 --fuse --test -b 1 --track_thresh 0.6
