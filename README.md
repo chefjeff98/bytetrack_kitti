@@ -21,7 +21,7 @@ pip install cython; pip install 'git+https://github.com/cocodataset/cocoapi.git#
 
 Step3. Others
 ```shell
-pip3 install cython_bbox
+pip install cython_bbox
 ```
 
 ### Download large files
